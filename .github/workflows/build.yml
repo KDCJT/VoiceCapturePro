@@ -1,11 +1,5 @@
 # ────────────────────────────────────────────────────────────────────────────
-# .github/workflows/build.yml
-#
-# Builds an unsigned VoiceCapturePro.ipa using a free GitHub-hosted macOS runner.
-#
-# Artifacts:
-#   VoiceCapturePro-unsigned.ipa  →  install via AltStore, Sideloadly, or TrollStore
-#
+# .github/workflows/build.yml  –  v2 (fixed error propagation + app path)
 # ────────────────────────────────────────────────────────────────────────────
 
 name: Build VoiceCapturePro IPA
@@ -15,29 +9,35 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
-  workflow_dispatch:       # allows manual trigger from GitHub Actions UI
+  workflow_dispatch:
 
 env:
   SCHEME:        VoiceCapturePro
   CONFIGURATION: Release
-  DERIVED_DATA:  ${{ github.workspace }}/DerivedData
 
 jobs:
   build:
     name: Build (unsigned)
-    runs-on: macos-14      # Xcode 15 — latest stable on GitHub-hosted runners
+    runs-on: macos-14   # Xcode 15 available
 
     steps:
-      # ── 1. Checkout ───────────────────────────────────────────────────────
+      # ── 1. Checkout ──────────────────────────────────────────────────────
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # ── 2. Select Xcode version ───────────────────────────────────────────
+      # ── 2. Select Xcode ──────────────────────────────────────────────────
       - name: Select Xcode 15
-        run: sudo xcode-select -s /Applications/Xcode_15.4.app/Contents/Developer
-
-      - name: Show Xcode version
-        run: xcodebuild -version
+        run: |
+          # List available Xcode versions for debugging
+          ls /Applications/ | grep Xcode || true
+          # Select latest Xcode 15 available
+          XCODE=$(ls /Applications/ | grep "^Xcode_15" | sort -V | tail -1)
+          if [ -z "$XCODE" ]; then
+            echo "Xcode 15 not found, using default"
+          else
+            sudo xcode-select -s "/Applications/$XCODE/Contents/Developer"
+          fi
+          xcodebuild -version
 
       # ── 3. Install XcodeGen ───────────────────────────────────────────────
       - name: Install XcodeGen
@@ -47,48 +47,86 @@ jobs:
 
       # ── 4. Generate Xcode project ─────────────────────────────────────────
       - name: Generate .xcodeproj from project.yml
-        run: xcodegen generate --spec project.yml
+        run: |
+          xcodegen generate --spec project.yml
+          ls -la VoiceCapturePro.xcodeproj/
 
-      # ── 5. Build (no code signing) ────────────────────────────────────────
+      # ── 5. Build ──────────────────────────────────────────────────────────
+      # We capture the xcodebuild exit code explicitly through the pipe
+      # using PIPESTATUS[0] so errors are NOT masked by tee/grep.
       - name: Build for device (unsigned)
         run: |
+          set -o pipefail
+          DERIVED="$GITHUB_WORKSPACE/DerivedData"
+
           xcodebuild \
             -project VoiceCapturePro.xcodeproj \
             -scheme "$SCHEME" \
             -configuration "$CONFIGURATION" \
             -sdk iphoneos \
-            -derivedDataPath "$DERIVED_DATA" \
+            -derivedDataPath "$DERIVED" \
             ONLY_ACTIVE_ARCH=NO \
             CODE_SIGN_IDENTITY="" \
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGNING_ALLOWED=NO \
             CODE_SIGN_STYLE=Manual \
             DEVELOPMENT_TEAM="" \
-            | tee build.log \
-            | grep -E "^(error:|warning:|Build succeeded|** BUILD)" || true
+            2>&1 | tee build.log
 
-      # ── 6. Check build result ─────────────────────────────────────────────
-      - name: Verify build succeeded
-        run: |
-          if grep -q "BUILD FAILED" build.log; then
-            echo "❌ Build failed. See full log above."
+          # Capture xcodebuild's own exit code (PIPESTATUS[0]) before doing anything else
+          BUILD_CODE=${PIPESTATUS[0]}
+
+          echo "──────────────────────────────────────"
+          echo "xcodebuild exit code: $BUILD_CODE"
+
+          if [ "$BUILD_CODE" -ne 0 ]; then
+            echo ""
+            echo "❌ BUILD FAILED. Last 60 lines of log:"
+            tail -60 build.log
             exit 1
           fi
-          echo "✅ Build succeeded."
-          APP_PATH="$DERIVED_DATA/Build/Products/$CONFIGURATION-iphoneos/$SCHEME.app"
+
+          if grep -q "BUILD FAILED" build.log; then
+            echo "❌ BUILD FAILED (detected in log)"
+            grep "error:" build.log | head -30
+            exit 1
+          fi
+
+          echo "✅ Build succeeded"
+
+      # ── 6. Find .app and package IPA ─────────────────────────────────────
+      - name: Find .app and package IPA
+        run: |
+          DERIVED="$GITHUB_WORKSPACE/DerivedData"
+
+          echo "=== DerivedData/Build/Products contents ==="
+          find "$DERIVED/Build/Products" -maxdepth 3 2>/dev/null || echo "(empty)"
+
+          # Dynamically locate the .app – works even if path varies
+          APP_PATH=$(find "$DERIVED/Build/Products" \
+            -name "VoiceCapturePro.app" \
+            -maxdepth 5 \
+            -not -path "*.xctest*" \
+            2>/dev/null | head -1)
+
+          if [ -z "$APP_PATH" ]; then
+            echo "❌ VoiceCapturePro.app not found in DerivedData"
+            exit 1
+          fi
+
+          echo "✅ Found: $APP_PATH"
           ls -la "$APP_PATH"
 
-      # ── 7. Package IPA ────────────────────────────────────────────────────
-      - name: Package unsigned IPA
-        run: |
-          APP_PATH="$DERIVED_DATA/Build/Products/$CONFIGURATION-iphoneos/$SCHEME.app"
+          # Package as IPA (Payload/*.app → zip → rename .ipa)
           mkdir -p Payload
           cp -r "$APP_PATH" Payload/
           zip -r VoiceCapturePro-unsigned.ipa Payload/ -x "*.DS_Store"
           rm -rf Payload
-          ls -lh VoiceCapturePro-unsigned.ipa
 
-      # ── 8. Upload artifact ────────────────────────────────────────────────
+          ls -lh VoiceCapturePro-unsigned.ipa
+          echo "✅ IPA packaged successfully"
+
+      # ── 7. Upload artifact ────────────────────────────────────────────────
       - name: Upload IPA artifact
         uses: actions/upload-artifact@v4
         with:
@@ -97,7 +135,7 @@ jobs:
           retention-days: 30
           if-no-files-found: error
 
-      # ── 9. Build summary ─────────────────────────────────────────────────
+      # ── 8. Summary ────────────────────────────────────────────────────────
       - name: Build summary
         if: success()
         run: |
@@ -105,7 +143,7 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**IPA**: \`VoiceCapturePro-unsigned.ipa\`" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "#### 安装方式" >> $GITHUB_STEP_SUMMARY
-          echo "1. **AltStore** – 将 IPA 导入 AltStore，用您的 Apple ID 签名安装（每7天重签）" >> $GITHUB_STEP_SUMMARY
-          echo "2. **Sideloadly** – 连接 iPhone 后拖入 IPA 安装" >> $GITHUB_STEP_SUMMARY
-          echo "3. **TrollStore** – 若您的设备/系统版本受支持，可永久安装" >> $GITHUB_STEP_SUMMARY
+          echo "#### 安装方式（TrollStore）" >> $GITHUB_STEP_SUMMARY
+          echo "1. 下载 Artifact zip → 解压得到 IPA" >> $GITHUB_STEP_SUMMARY
+          echo "2. TrollStore → **+** → 选择 IPA → Install" >> $GITHUB_STEP_SUMMARY
+          echo "3. 无需注册，永久有效 🎉" >> $GITHUB_STEP_SUMMARY

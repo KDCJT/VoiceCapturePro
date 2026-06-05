@@ -10,7 +10,8 @@ struct VoiceCaptureProApp: App {
 
     init() {
         // Request microphone permission at launch
-        AVAudioApplication.requestRecordPermission { _ in }
+        // AVAudioApplication is iOS 17+; use AVAudioSession for iOS 16 compatibility
+        AVAudioSession.sharedInstance().requestRecordPermission { _ in }
         // Dark appearance
         UINavigationBar.appearance().largeTitleTextAttributes = [
             .foregroundColor: UIColor(Color.vcText)

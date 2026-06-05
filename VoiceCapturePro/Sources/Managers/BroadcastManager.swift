@@ -66,10 +66,12 @@ final class BroadcastManager: NSObject, ObservableObject {
             AppGroupConstants.broadcastResumedNotif,
             AppGroupConstants.broadcastFinishedNotif
         ]
+        // Use passUnretained: BroadcastManager lives for the app lifetime (@StateObject)
+        let selfPtr = Unmanaged.passUnretained(self).toOpaque()
         for name in names {
             CFNotificationCenterAddObserver(
                 center,
-                Unmanaged.passRetained(self).toOpaque(),
+                selfPtr,
                 { _, observer, name, _, _ in
                     guard let obs = observer else { return }
                     let mgr = Unmanaged<BroadcastManager>.fromOpaque(obs).takeUnretainedValue()
@@ -84,9 +86,10 @@ final class BroadcastManager: NSObject, ObservableObject {
     }
 
     private func unregisterDarwinNotifications() {
+        // Use passUnretained to match the same pointer value used in registerDarwinNotifications
         CFNotificationCenterRemoveEveryObserver(
             CFNotificationCenterGetDarwinNotifyCenter(),
-            Unmanaged.passRetained(self).toOpaque()
+            Unmanaged.passUnretained(self).toOpaque()
         )
     }
 

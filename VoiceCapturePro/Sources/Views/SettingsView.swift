@@ -2,6 +2,7 @@
 // App-wide settings: quality, location permission, about, storage info.
 
 import SwiftUI
+import AVFoundation
 import CoreLocation
 
 struct SettingsView: View {
@@ -173,7 +174,8 @@ struct SettingsView: View {
     // MARK: - Helpers
 
     private var micStatus: String {
-        switch AVAudioApplication.shared.recordPermission {
+        // AVAudioApplication is iOS 17+; use AVAudioSession for iOS 16 compatibility
+        switch AVAudioSession.sharedInstance().recordPermission {
         case .granted:   return "已授权"
         case .denied:    return "已拒绝"
         default:         return "待授权"
