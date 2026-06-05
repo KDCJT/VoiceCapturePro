@@ -67,9 +67,9 @@ jobs:
             -sdk iphoneos \
             -derivedDataPath "$DERIVED" \
             ONLY_ACTIVE_ARCH=NO \
-            CODE_SIGN_IDENTITY="-" \
-            CODE_SIGNING_REQUIRED=YES \
-            CODE_SIGNING_ALLOWED=YES \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO \
             CODE_SIGN_STYLE=Manual \
             DEVELOPMENT_TEAM="" \
             2>&1 | tee build.log
@@ -117,6 +117,23 @@ jobs:
 
           echo "✅ Found: $APP_PATH"
           ls -la "$APP_PATH"
+
+          # ── Ad-hoc sign both the Extension and the App with their entitlements ──
+          # We sign the nested Broadcast Extension first, then the parent App.
+          EXT_PATH="$APP_PATH/PlugIns/BroadcastExtension.appex"
+          if [ -d "$EXT_PATH" ]; then
+            echo "=== Ad-hoc signing Broadcast Extension ==="
+            codesign --force --sign - --entitlements "$GITHUB_WORKSPACE/BroadcastExtension/BroadcastExtension.entitlements" "$EXT_PATH/BroadcastExtension"
+            echo "=== Verified Broadcast Extension Entitlements ==="
+            codesign -d --entitlements - "$EXT_PATH/BroadcastExtension"
+          else
+            echo "⚠️ Broadcast Extension not found at $EXT_PATH"
+          fi
+
+          echo "=== Ad-hoc signing Main App ==="
+          codesign --force --sign - --entitlements "$GITHUB_WORKSPACE/VoiceCapturePro/VoiceCapturePro.entitlements" "$APP_PATH/VoiceCapturePro"
+          echo "=== Verified Main App Entitlements ==="
+          codesign -d --entitlements - "$APP_PATH/VoiceCapturePro"
 
           # Package as IPA (Payload/*.app → zip → rename .ipa)
           mkdir -p Payload
