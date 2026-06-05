@@ -110,7 +110,7 @@ class SampleHandler: RPBroadcastSampleHandler {
     override func broadcastFinished() {
         defaults?.set(Date().timeIntervalSince1970, forKey: AppGroupConstants.recordingEndTimeKey)
         defaults?.set(BroadcastStatus.finished.rawValue, forKey: AppGroupConstants.broadcastStatusKey)
-        finalize()
+        finalizeRecording()
     }
 
     // MARK: - Sample Processing
@@ -150,7 +150,7 @@ class SampleHandler: RPBroadcastSampleHandler {
 
     // MARK: - Finalization
 
-    private func finalize() {
+    private func finalizeRecording() {
         let group = DispatchGroup()
 
         group.enter()
@@ -172,7 +172,7 @@ class SampleHandler: RPBroadcastSampleHandler {
     private func rmsLevel(_ sampleBuffer: CMSampleBuffer) -> Float {
         guard let block = CMSampleBufferGetDataBuffer(sampleBuffer) else { return 0 }
 
-        var offset = 0
+        let offset = 0
         var lengthAtOffset = 0
         var totalLength    = 0
         var ptr: UnsafeMutablePointer<Int8>?
