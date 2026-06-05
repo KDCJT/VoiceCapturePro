@@ -14,7 +14,7 @@ struct VoiceCaptureProApp: App {
         AVAudioSession.sharedInstance().requestRecordPermission { _ in }
         // Dark appearance
         UINavigationBar.appearance().largeTitleTextAttributes = [
-            .foregroundColor: UIColor(Color.vcText)
+            .foregroundColor: UIColor(red: 0.92, green: 0.92, blue: 0.98, alpha: 1.0)
         ]
     }
 
