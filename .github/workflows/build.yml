@@ -1,0 +1,111 @@
+# ────────────────────────────────────────────────────────────────────────────
+# .github/workflows/build.yml
+#
+# Builds an unsigned VoiceCapturePro.ipa using a free GitHub-hosted macOS runner.
+#
+# Artifacts:
+#   VoiceCapturePro-unsigned.ipa  →  install via AltStore, Sideloadly, or TrollStore
+#
+# ────────────────────────────────────────────────────────────────────────────
+
+name: Build VoiceCapturePro IPA
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:       # allows manual trigger from GitHub Actions UI
+
+env:
+  SCHEME:        VoiceCapturePro
+  CONFIGURATION: Release
+  DERIVED_DATA:  ${{ github.workspace }}/DerivedData
+
+jobs:
+  build:
+    name: Build (unsigned)
+    runs-on: macos-14      # Xcode 15 — latest stable on GitHub-hosted runners
+
+    steps:
+      # ── 1. Checkout ───────────────────────────────────────────────────────
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # ── 2. Select Xcode version ───────────────────────────────────────────
+      - name: Select Xcode 15
+        run: sudo xcode-select -s /Applications/Xcode_15.4.app/Contents/Developer
+
+      - name: Show Xcode version
+        run: xcodebuild -version
+
+      # ── 3. Install XcodeGen ───────────────────────────────────────────────
+      - name: Install XcodeGen
+        run: |
+          brew install xcodegen
+          xcodegen --version
+
+      # ── 4. Generate Xcode project ─────────────────────────────────────────
+      - name: Generate .xcodeproj from project.yml
+        run: xcodegen generate --spec project.yml
+
+      # ── 5. Build (no code signing) ────────────────────────────────────────
+      - name: Build for device (unsigned)
+        run: |
+          xcodebuild \
+            -project VoiceCapturePro.xcodeproj \
+            -scheme "$SCHEME" \
+            -configuration "$CONFIGURATION" \
+            -sdk iphoneos \
+            -derivedDataPath "$DERIVED_DATA" \
+            ONLY_ACTIVE_ARCH=NO \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGN_STYLE=Manual \
+            DEVELOPMENT_TEAM="" \
+            | tee build.log \
+            | grep -E "^(error:|warning:|Build succeeded|** BUILD)" || true
+
+      # ── 6. Check build result ─────────────────────────────────────────────
+      - name: Verify build succeeded
+        run: |
+          if grep -q "BUILD FAILED" build.log; then
+            echo "❌ Build failed. See full log above."
+            exit 1
+          fi
+          echo "✅ Build succeeded."
+          APP_PATH="$DERIVED_DATA/Build/Products/$CONFIGURATION-iphoneos/$SCHEME.app"
+          ls -la "$APP_PATH"
+
+      # ── 7. Package IPA ────────────────────────────────────────────────────
+      - name: Package unsigned IPA
+        run: |
+          APP_PATH="$DERIVED_DATA/Build/Products/$CONFIGURATION-iphoneos/$SCHEME.app"
+          mkdir -p Payload
+          cp -r "$APP_PATH" Payload/
+          zip -r VoiceCapturePro-unsigned.ipa Payload/ -x "*.DS_Store"
+          rm -rf Payload
+          ls -lh VoiceCapturePro-unsigned.ipa
+
+      # ── 8. Upload artifact ────────────────────────────────────────────────
+      - name: Upload IPA artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: VoiceCapturePro-unsigned-${{ github.sha }}
+          path: VoiceCapturePro-unsigned.ipa
+          retention-days: 30
+          if-no-files-found: error
+
+      # ── 9. Build summary ─────────────────────────────────────────────────
+      - name: Build summary
+        if: success()
+        run: |
+          echo "### ✅ Build Succeeded" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**IPA**: \`VoiceCapturePro-unsigned.ipa\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "#### 安装方式" >> $GITHUB_STEP_SUMMARY
+          echo "1. **AltStore** – 将 IPA 导入 AltStore，用您的 Apple ID 签名安装（每7天重签）" >> $GITHUB_STEP_SUMMARY
+          echo "2. **Sideloadly** – 连接 iPhone 后拖入 IPA 安装" >> $GITHUB_STEP_SUMMARY
+          echo "3. **TrollStore** – 若您的设备/系统版本受支持，可永久安装" >> $GITHUB_STEP_SUMMARY

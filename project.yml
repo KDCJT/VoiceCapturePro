@@ -1,0 +1,133 @@
+# project.yml  –  XcodeGen specification
+# Docs: https://github.com/yonaskolb/XcodeGen/blob/master/Docs/ProjectSpec.md
+#
+# ⚠️  Before building, replace EVERY occurrence of:
+#   "com.vcpro.recorder"           →  your unique reverse-domain bundle ID
+#   "group.com.vcpro.recorder"     →  matching App Group ID in Apple Developer portal
+#   "com.vcpro.recorder.broadcast" →  <bundleID>.broadcast
+# You only need a FREE Apple ID to use App Groups during development.
+
+name: VoiceCapturePro
+
+options:
+  bundleIdPrefix: com.vcpro
+  deploymentTarget:
+    iOS: "16.0"
+  groupSortPosition: top
+  createIntermediateGroups: true
+  developmentLanguage: en
+  defaultConfig: Debug
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Shared build settings
+# ─────────────────────────────────────────────────────────────────────────────
+settings:
+  base:
+    SWIFT_VERSION: "5.9"
+    ENABLE_BITCODE: NO
+    TARGETED_DEVICE_FAMILY: "1"        # iPhone only
+    SUPPORTED_PLATFORMS: iphoneos
+    SDKROOT: iphoneos
+    ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES: YES
+    # Signing is intentionally left empty for CI unsigned builds.
+    # For local signed builds, set DEVELOPMENT_TEAM to your 10-char team ID.
+    CODE_SIGN_STYLE: Manual
+    DEVELOPMENT_TEAM: ""
+    CODE_SIGN_IDENTITY: ""
+    CODE_SIGNING_REQUIRED: NO
+    CODE_SIGNING_ALLOWED: NO
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Targets
+# ─────────────────────────────────────────────────────────────────────────────
+targets:
+
+  # ══════════════════════════════════════════════════════════════════
+  # Main App
+  # ══════════════════════════════════════════════════════════════════
+  VoiceCapturePro:
+    type: application
+    platform: iOS
+    deploymentTarget: "16.0"
+
+    sources:
+      - path: VoiceCapturePro/Sources
+        createIntermediateGroups: true
+      - path: Shared
+        createIntermediateGroups: true
+
+    resources:
+      - path: VoiceCapturePro/Resources
+
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.vcpro.recorder
+        INFOPLIST_FILE: VoiceCapturePro/Info.plist
+        CODE_SIGN_ENTITLEMENTS: VoiceCapturePro/VoiceCapturePro.entitlements
+        LD_RUNPATH_SEARCH_PATHS: "$(inherited) @executable_path/Frameworks"
+        SWIFT_ACTIVE_COMPILATION_CONDITIONS: DEBUG
+      configs:
+        Release:
+          SWIFT_ACTIVE_COMPILATION_CONDITIONS: ""
+
+    info:
+      path: VoiceCapturePro/Info.plist
+      properties:
+        CFBundleDisplayName: VoiceCapture
+        CFBundleShortVersionString: "1.0"
+        CFBundleVersion: "1"
+        UILaunchScreen: {}
+        UIStatusBarStyle: UIStatusBarStyleLightContent
+        UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationPortrait
+        UIRequiresFullScreen: true
+
+        # ─── Permissions ────────────────────────────────────────────
+        NSMicrophoneUsageDescription: "录音器需要访问麦克风以录制您的声音。"
+        NSLocationWhenInUseUsageDescription: "录音时记录您的位置，方便日后检索。"
+        NSLocationAlwaysAndWhenInUseUsageDescription: "录音时记录您的位置，方便日后检索。"
+
+        # ─── Background Modes ────────────────────────────────────────
+        UIBackgroundModes:
+          - audio
+          - location
+
+        # ─── App Transport Security ──────────────────────────────────
+        NSAppTransportSecurity:
+          NSAllowsArbitraryLoads: false
+
+    dependencies:
+      - target: BroadcastExtension
+        embed: true
+
+  # ══════════════════════════════════════════════════════════════════
+  # Broadcast Upload Extension  (captures system audio + mic)
+  # ══════════════════════════════════════════════════════════════════
+  BroadcastExtension:
+    type: app-extension
+    platform: iOS
+    deploymentTarget: "16.0"
+
+    sources:
+      - path: BroadcastExtension/Sources
+        createIntermediateGroups: true
+      - path: Shared
+        createIntermediateGroups: true
+
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.vcpro.recorder.broadcast
+        INFOPLIST_FILE: BroadcastExtension/Info.plist
+        CODE_SIGN_ENTITLEMENTS: BroadcastExtension/BroadcastExtension.entitlements
+        LD_RUNPATH_SEARCH_PATHS: "$(inherited) @executable_path/../../Frameworks"
+
+    info:
+      path: BroadcastExtension/Info.plist
+      properties:
+        CFBundleDisplayName: VCPBroadcast
+        CFBundleShortVersionString: "1.0"
+        CFBundleVersion: "1"
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.broadcast-services-upload
+          NSExtensionPrincipalClass: $(PRODUCT_MODULE_NAME).SampleHandler
+          RPBroadcastProcessMode: RPBroadcastProcessModeSampleBuffer

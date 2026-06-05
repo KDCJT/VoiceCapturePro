@@ -1,0 +1,28 @@
+# ── Xcode generated ─────────────────────────────────────────────
+*.xcodeproj/
+!*.xcodeproj/project.pbxproj
+*.xcworkspace/
+DerivedData/
+build/
+*.ipa
+Payload/
+*.dSYM.zip
+*.dSYM
+
+# ── Swift Package Manager ────────────────────────────────────────
+.build/
+.swiftpm/
+
+# ── macOS ────────────────────────────────────────────────────────
+.DS_Store
+.AppleDouble
+.LSOverride
+*.swp
+
+# ── Build logs ───────────────────────────────────────────────────
+build.log
+
+# ── IDE ──────────────────────────────────────────────────────────
+.idea/
+*.xcuserstate
+xcuserdata/
