@@ -103,7 +103,7 @@ struct RecordingListView: View {
         .navigationTitle("录音库")
         .navigationBarTitleDisplayMode(.large)
         .toolbar {
-            ToolbarItem(placement: .topBarTrailing) {
+            ToolbarItem(placement: .navigationBarTrailing) {
                 Menu {
                     ForEach(SortOrder.allCases, id: \.self) { order in
                         Button {

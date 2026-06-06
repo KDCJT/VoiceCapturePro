@@ -46,11 +46,11 @@ struct RecordingDetailView: View {
             }
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
+                ToolbarItem(placement: .navigationBarLeading) {
                     Button("关闭") { stopPlayback(); dismiss() }
                         .foregroundColor(.vcAccent)
                 }
-                ToolbarItem(placement: .topBarTrailing) {
+                ToolbarItem(placement: .navigationBarTrailing) {
                     Button { shareRecording() } label: {
                         Image(systemName: "square.and.arrow.up")
                             .foregroundColor(.vcAccent)
@@ -228,10 +228,13 @@ struct RecordingDetailView: View {
                     .frame(minHeight: 80)
                     .foregroundColor(.vcText)
                     .font(.system(size: 14))
-                    .scrollContentBackground(.hidden)
                     .padding(10)
                     .background(Color.vcSurface)
                     .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                    .onAppear {
+                        // iOS 15 workaround for TextEditor background
+                        UITextView.appearance().backgroundColor = .clear
+                    }
 
                 HStack {
                     Spacer()
@@ -267,7 +270,8 @@ struct RecordingDetailView: View {
                 .font(.system(size: 13, weight: .semibold))
                 .foregroundColor(.vcSubtext)
 
-            FlowLayout(spacing: 8) {
+            // Use a simple wrapping HStack approach (iOS 15 compatible)
+            WrappingHStack(spacing: 8) {
                 ForEach(recording.tags, id: \.self) { tag in
                     HStack(spacing: 4) {
                         Text("#\(tag)")
@@ -376,30 +380,24 @@ struct RecordingDetailView: View {
     }
 }
 
-// MARK: - FlowLayout (tag wrap layout)
+// MARK: - WrappingHStack (iOS 15 compatible flow layout)
 
-struct FlowLayout: Layout {
-    var spacing: CGFloat = 8
+/// A simple wrapping layout that works on iOS 15+ (no Layout protocol needed).
+struct WrappingHStack<Content: View>: View {
+    let spacing: CGFloat
+    let content: () -> Content
 
-    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
-        let width = proposal.width ?? 300
-        var x: CGFloat = 0; var y: CGFloat = 0; var maxH: CGFloat = 0; var rowH: CGFloat = 0
-        for sv in subviews {
-            let s = sv.sizeThatFits(.unspecified)
-            if x + s.width > width && x > 0 { y += rowH + spacing; x = 0; rowH = 0 }
-            rowH = max(rowH, s.height); x += s.width + spacing
-            maxH = max(maxH, y + rowH)
-        }
-        return CGSize(width: width, height: maxH)
+    init(spacing: CGFloat = 8, @ViewBuilder content: @escaping () -> Content) {
+        self.spacing = spacing
+        self.content = content
     }
 
-    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
-        var x = bounds.minX; var y = bounds.minY; var rowH: CGFloat = 0
-        for sv in subviews {
-            let s = sv.sizeThatFits(.unspecified)
-            if x + s.width > bounds.maxX && x > bounds.minX { y += rowH + spacing; x = bounds.minX; rowH = 0 }
-            sv.place(at: CGPoint(x: x, y: y), proposal: .unspecified)
-            rowH = max(rowH, s.height); x += s.width + spacing
+    var body: some View {
+        // For iOS 15, use a simple VStack + HStack wrapping approach
+        // by leveraging the _VariadicView internal, or just use a ScrollView with horizontal wrapping.
+        // Simplest reliable approach: let the tags wrap using a LazyVGrid with flexible columns.
+        LazyVGrid(columns: [GridItem(.adaptive(minimum: 80), spacing: spacing)], alignment: .leading, spacing: spacing) {
+            content()
         }
     }
 }

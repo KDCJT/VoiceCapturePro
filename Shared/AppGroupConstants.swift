@@ -30,8 +30,16 @@ enum AppGroupConstants {
     static let broadcastFinishedNotif  = "com.vcpro.recorder.broadcastFinished"
 
     // ─── Shared container URL ───────────────────────────────
+    /// Returns the App Group shared container if available.
+    /// Falls back to the app's Documents directory when the
+    /// App Group entitlement isn't provisioned (e.g. TrollStore).
     static var containerURL: URL? {
-        FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: appGroupID)
+        if let groupURL = FileManager.default.containerURL(
+            forSecurityApplicationGroupIdentifier: appGroupID) {
+            return groupURL
+        }
+        // Fallback: use the app's own Documents directory
+        return FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first
     }
 }
 

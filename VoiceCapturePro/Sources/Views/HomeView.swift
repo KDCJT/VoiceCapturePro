@@ -154,8 +154,6 @@ struct HomeView: View {
             Text(elapsedDisplay)
                 .font(.system(size: 52, weight: .thin, design: .monospaced))
                 .foregroundColor(manager.isRecording ? .vcText : .vcSubtext)
-                .contentTransition(.numericText())
-                .animation(.easeInOut, value: elapsedDisplay)
 
             if manager.isRecording {
                 HStack(spacing: 6) {
@@ -202,13 +200,12 @@ struct HomeView: View {
                 .font(.system(size: 12, weight: .medium))
                 .foregroundColor(.vcSubtext)
 
-            TextField("添加备注…", text: $manager.currentNotes, axis: .vertical)
+            TextField("添加备注…", text: $manager.currentNotes)
                 .font(.system(size: 14))
                 .foregroundColor(.vcText)
                 .padding(12)
                 .background(Color.vcSurface)
                 .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-                .lineLimit(3)
         }
         .transition(.move(edge: .bottom).combined(with: .opacity))
     }
@@ -277,12 +274,11 @@ struct HomeView: View {
                 }
             }
             .listStyle(.insetGrouped)
-            .scrollContentBackground(.hidden)
             .background(Color.vcBackground)
             .navigationTitle("录音质量")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
+                ToolbarItem(placement: .navigationBarTrailing) {
                     Button("关闭") { showQualityPicker = false }
                         .foregroundColor(.vcAccent)
                 }

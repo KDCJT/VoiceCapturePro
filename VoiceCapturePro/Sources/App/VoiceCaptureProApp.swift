@@ -36,7 +36,7 @@ struct ContentView: View {
     var body: some View {
         TabView(selection: $selectedTab) {
             // ── Tab 1: Record ──────────────────────────────────────
-            NavigationStack {
+            NavigationView {
                 HomeView()
                     .navigationBarHidden(true)
             }
@@ -46,7 +46,7 @@ struct ContentView: View {
             .tag(0)
 
             // ── Tab 2: Library ─────────────────────────────────────
-            NavigationStack {
+            NavigationView {
                 RecordingListView()
             }
             .tabItem {

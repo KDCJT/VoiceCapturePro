@@ -106,7 +106,7 @@ struct SettingsView: View {
 
                 // ─── 关于 ────────────────────────────────────────────────
                 Section {
-                    infoRow("版本", "1.0.0")
+                    infoRow("版本", "1.1.0")
                     infoRow("双轨道捕获", "ReplayKit Broadcast Extension")
                     infoRow("支持格式", "AAC (.m4a) / PCM (.caf)")
                     infoRow("最高音质", "48kHz · 24bit · PCM 无损")
@@ -121,7 +121,9 @@ struct SettingsView: View {
                 }
             }
             .listStyle(.insetGrouped)
-            .scrollContentBackground(.hidden)
+            .onAppear {
+                UITableView.appearance().backgroundColor = .clear
+            }
         }
         .navigationTitle("设置")
         .navigationBarTitleDisplayMode(.large)
