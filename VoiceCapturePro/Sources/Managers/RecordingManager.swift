@@ -85,11 +85,22 @@ final class RecordingManager: ObservableObject {
             }
             .store(in: &cancellables)
 
-        // Broadcast finished → save recording
+        // Broadcast finished/started -> update state and save recording
         broadcastMgr.$status
             .receive(on: RunLoop.main)
             .sink { [weak self] status in
-                if status == .finished { self?.onBroadcastFinished() }
+                guard let self = self else { return }
+                if self.currentMode == .fullCapture {
+                    switch status {
+                    case .recording, .paused:
+                        self.isRecording = true
+                    case .finished:
+                        self.onBroadcastFinished()
+                        self.isRecording = false
+                    case .idle:
+                        self.isRecording = false
+                    }
+                }
             }
             .store(in: &cancellables)
     }
@@ -123,7 +134,6 @@ final class RecordingManager: ObservableObject {
                 return
             }
             broadcastMgr.showBroadcastPicker(in: vc)
-            isRecording = true
         }
     }
 
@@ -157,12 +167,8 @@ final class RecordingManager: ObservableObject {
             save(recording)
 
         case .fullCapture:
-            // The broadcast finishes via user tapping the system stop button in Control Center.
-            // onBroadcastFinished() will be called automatically.
-            // If the user taps stop here, we can request the broadcast to stop:
-            // RPBroadcastController doesn't expose a public stop API,
-            // so we just update UI state and wait for the Darwin notification.
-            isRecording = false
+            // Request the broadcast extension to stop via Darwin notification
+            broadcastMgr.stopBroadcast()
         }
     }
 

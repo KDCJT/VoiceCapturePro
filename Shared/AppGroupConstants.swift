@@ -28,6 +28,7 @@ enum AppGroupConstants {
     static let broadcastPausedNotif    = "com.vcpro.recorder.broadcastPaused"
     static let broadcastResumedNotif   = "com.vcpro.recorder.broadcastResumed"
     static let broadcastFinishedNotif  = "com.vcpro.recorder.broadcastFinished"
+    static let broadcastRequestStopNotif = "com.vcpro.recorder.broadcastRequestStop"
 
     // ─── Shared container URL ───────────────────────────────
     /// Returns the App Group shared container if available.

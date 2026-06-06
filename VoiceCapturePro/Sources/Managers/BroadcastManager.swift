@@ -43,17 +43,39 @@ final class BroadcastManager: NSObject, ObservableObject {
 
     /// Presents the system broadcast picker sheet inside the given view hierarchy.
     func showBroadcastPicker(in parent: UIViewController) {
-        let picker = RPSystemBroadcastPickerView(frame: CGRect(x: 0, y: 0, width: 60, height: 60))
-        picker.preferredExtension = AppGroupConstants.broadcastBundleID
-        picker.showsMicrophoneButton = false // Extension handles mic itself
+        DispatchQueue.main.async {
+            let picker = RPSystemBroadcastPickerView(frame: CGRect(x: 0, y: 0, width: 60, height: 60))
+            picker.preferredExtension = AppGroupConstants.broadcastBundleID
+            picker.showsMicrophoneButton = false
+            picker.alpha = 0.01 // Hidden to user but active to system
+            parent.view.addSubview(picker)
 
-        // Programmatically trigger the picker button so the user only taps once
-        for sub in picker.subviews {
-            if let btn = sub as? UIButton {
-                btn.sendActions(for: .allTouchEvents)
-                break
+            func findButton(in view: UIView) -> UIButton? {
+                if let button = view as? UIButton { return button }
+                for sub in view.subviews {
+                    if let btn = findButton(in: sub) { return btn }
+                }
+                return nil
+            }
+
+            if let btn = findButton(in: picker) {
+                btn.sendActions(for: .touchUpInside)
+            }
+
+            // Cleanup
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+                picker.removeFromSuperview()
             }
         }
+    }
+
+    /// Requests the broadcast extension to stop recording via Darwin notification.
+    func stopBroadcast() {
+        CFNotificationCenterPostNotification(
+            CFNotificationCenterGetDarwinNotifyCenter(),
+            CFNotificationName(AppGroupConstants.broadcastRequestStopNotif as CFString),
+            nil, nil, true
+        )
     }
 
     // MARK: - Darwin Notification Handling

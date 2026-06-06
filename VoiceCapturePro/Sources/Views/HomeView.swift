@@ -170,28 +170,18 @@ struct HomeView: View {
     }
 
     private var recordButton: some View {
-        ZStack {
-            // For fullCapture mode we embed the RPSystemBroadcastPickerView
-            // invisibly so tapping our styled button forwards to it.
-            if manager.currentMode == .fullCapture && !manager.isRecording {
-                BroadcastPickerButton(extensionBundleID: AppGroupConstants.broadcastBundleID)
-                    .frame(width: 120, height: 120)
-                    .opacity(0.01) // invisible but tappable
-            }
-
-            RecordButtonView(
-                isRecording: manager.isRecording,
-                level:       manager.displayLevel,
-                mode:        manager.currentMode,
-                onTap: {
-                    if manager.isRecording {
-                        manager.stopRecording()
-                    } else {
-                        manager.startRecording(in: hostVC)
-                    }
+        RecordButtonView(
+            isRecording: manager.isRecording,
+            level:       manager.displayLevel,
+            mode:        manager.currentMode,
+            onTap: {
+                if manager.isRecording {
+                    manager.stopRecording()
+                } else {
+                    manager.startRecording(in: hostVC)
                 }
-            )
-        }
+            }
+        )
     }
 
     private var notesSection: some View {

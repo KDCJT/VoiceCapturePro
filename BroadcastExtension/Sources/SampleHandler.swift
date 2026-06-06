@@ -95,6 +95,7 @@ class SampleHandler: RPBroadcastSampleHandler {
         }
 
         notify(AppGroupConstants.broadcastStartedNotif)
+        registerStopNotification()
     }
 
     override func broadcastPaused() {
@@ -151,6 +152,7 @@ class SampleHandler: RPBroadcastSampleHandler {
     // MARK: - Finalization
 
     private func finalizeRecording() {
+        unregisterStopNotification()
         let group = DispatchGroup()
 
         group.enter()
@@ -208,6 +210,32 @@ class SampleHandler: RPBroadcastSampleHandler {
             CFNotificationCenterGetDarwinNotifyCenter(),
             CFNotificationName(name as CFString),
             nil, nil, true
+        )
+    }
+
+    private func registerStopNotification() {
+        let center = CFNotificationCenterGetDarwinNotifyCenter()
+        let selfPtr = Unmanaged.passUnretained(self).toOpaque()
+        CFNotificationCenterAddObserver(
+            center,
+            selfPtr,
+            { _, observer, _, _, _ in
+                guard let obs = observer else { return }
+                let handler = Unmanaged<SampleHandler>.fromOpaque(obs).takeUnretainedValue()
+                DispatchQueue.main.async {
+                    handler.finishBroadcastWithError(nil)
+                }
+            },
+            AppGroupConstants.broadcastRequestStopNotif as CFString,
+            nil,
+            .deliverImmediately
+        )
+    }
+
+    private func unregisterStopNotification() {
+        CFNotificationCenterRemoveEveryObserver(
+            CFNotificationCenterGetDarwinNotifyCenter(),
+            Unmanaged.passUnretained(self).toOpaque()
         )
     }
 }
