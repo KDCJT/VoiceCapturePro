@@ -34,16 +34,21 @@ final class AudioRecordingEngine: NSObject, ObservableObject, AVAudioRecorderDel
 
         // Configure AVAudioSession for recording while allowing other apps to play
         let session = AVAudioSession.sharedInstance()
+        var categoryOptions: AVAudioSession.CategoryOptions = [
+            .defaultToSpeaker,
+            .allowBluetooth,          // Bluetooth headset mic
+            .allowBluetoothA2DP,      // A2DP (AirPods, etc.)
+            .mixWithOthers            // Let other apps (WeChat) keep playing
+        ]
+        #if compiler(>=5.9)
+        if #available(iOS 17.0, *) {
+            categoryOptions.insert(.interruptSpokenAudioAndMixWithOthers)
+        }
+        #endif
         try session.setCategory(
             .playAndRecord,
             mode: .default,
-            options: [
-                .defaultToSpeaker,
-                .allowBluetooth,          // Bluetooth headset mic
-                .allowBluetoothA2DP,      // A2DP (AirPods, etc.)
-                .mixWithOthers,           // Let other apps (WeChat) keep playing
-                .interruptSpokenAudioAndMixWithOthers
-            ]
+            options: categoryOptions
         )
         try session.setPreferredSampleRate(quality.sampleRate)
         try session.setActive(true, options: .notifyOthersOnDeactivation)

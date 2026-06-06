@@ -240,13 +240,15 @@ struct RecordingDetailView: View {
                     Spacer()
                     Button("取消") { editingNotes = false }
                         .foregroundColor(.vcSubtext)
-                    Button("保存") {
+                    Button {
                         recording.notes = draftNotes
                         manager.update(recording)
                         editingNotes = false
+                    } label: {
+                        Text("保存")
+                            .font(.system(size: 14, weight: .semibold))
                     }
                     .foregroundColor(.vcAccent)
-                    .fontWeight(.semibold)
                 }
                 .font(.system(size: 14))
             } else {
