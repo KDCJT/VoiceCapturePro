@@ -119,37 +119,45 @@ final class BroadcastManager: NSObject, ObservableObject {
     }
 
     private func handleNotification(_ name: String) {
-        syncStatusFromDefaults()
-        switch name {
-        case AppGroupConstants.broadcastStartedNotif:
-            status = .recording
-            startPolling()
-            startClock()
-        case AppGroupConstants.broadcastPausedNotif:
-            status = .paused
-            stopPolling()
-        case AppGroupConstants.broadcastResumedNotif:
-            status = .recording
-            startPolling()
-        case AppGroupConstants.broadcastFinishedNotif:
-            status = .finished
-            stopTimers()
-            micLevel = 0
-            sysLevel = 0
-        default:
-            break
+        let recID = defaults?.string(forKey: AppGroupConstants.currentRecordingIDKey) ?? ""
+        let startTimeVal = defaults?.double(forKey: AppGroupConstants.recordingStartTimeKey) ?? 0.0
+
+        DispatchQueue.main.async { [weak self] in
+            guard let self = self else { return }
+            self.recordingID = recID
+            if startTimeVal > 0 {
+                self.startTime = Date(timeIntervalSince1970: startTimeVal)
+            }
+
+            switch name {
+            case AppGroupConstants.broadcastStartedNotif:
+                self.status = .recording
+                self.startPolling()
+                self.startClock()
+            case AppGroupConstants.broadcastPausedNotif:
+                self.status = .paused
+                self.stopPolling()
+            case AppGroupConstants.broadcastResumedNotif:
+                self.status = .recording
+                self.startPolling()
+            case AppGroupConstants.broadcastFinishedNotif:
+                self.status = .finished
+                self.stopTimers()
+                self.micLevel = 0
+                self.sysLevel = 0
+            default:
+                break
+            }
         }
     }
 
     private func syncStatusFromDefaults() {
         let raw = defaults?.string(forKey: AppGroupConstants.broadcastStatusKey) ?? "idle"
         let newStatus = BroadcastStatus(rawValue: raw) ?? .idle
-        DispatchQueue.main.async {
-            self.status = newStatus
-            self.recordingID = self.defaults?.string(forKey: AppGroupConstants.currentRecordingIDKey) ?? ""
-            if let ts = self.defaults?.double(forKey: AppGroupConstants.recordingStartTimeKey), ts > 0 {
-                self.startTime = Date(timeIntervalSince1970: ts)
-            }
+        self.status = newStatus
+        self.recordingID = defaults?.string(forKey: AppGroupConstants.currentRecordingIDKey) ?? ""
+        if let ts = defaults?.double(forKey: AppGroupConstants.recordingStartTimeKey), ts > 0 {
+            self.startTime = Date(timeIntervalSince1970: ts)
         }
     }
 
