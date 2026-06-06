@@ -49,6 +49,7 @@ final class RecordingManager: ObservableObject {
 
     // Combined audio level (0-1) for waveform display
     @Published var displayLevel:     Float = 0
+    @Published var elapsedTime:      TimeInterval = 0
 
     // MARK: Private
     private var cancellables = Set<AnyCancellable>()
@@ -74,6 +75,15 @@ final class RecordingManager: ObservableObject {
             }
             .store(in: &cancellables)
 
+        // Observe micEngine elapsedTime
+        micEngine.$elapsedTime
+            .receive(on: RunLoop.main)
+            .sink { [weak self] t in
+                guard let self = self, self.currentMode == .micOnly else { return }
+                self.elapsedTime = t
+            }
+            .store(in: &cancellables)
+
         // Broadcast combined level → displayLevel
         broadcastMgr.$micLevel
             .combineLatest(broadcastMgr.$sysLevel)
@@ -82,6 +92,15 @@ final class RecordingManager: ObservableObject {
             .sink { [weak self] lvl in
                 guard let self = self, self.currentMode == .fullCapture else { return }
                 self.displayLevel = lvl
+            }
+            .store(in: &cancellables)
+
+        // Observe broadcastMgr elapsedTime
+        broadcastMgr.$elapsedTime
+            .receive(on: RunLoop.main)
+            .sink { [weak self] t in
+                guard let self = self, self.currentMode == .fullCapture else { return }
+                self.elapsedTime = t
             }
             .store(in: &cancellables)
 
@@ -120,6 +139,7 @@ final class RecordingManager: ObservableObject {
     func startRecording(in viewController: UIViewController? = nil) {
         sessionStartDate = Date()
         currentNotes = ""
+        elapsedTime = 0
         locationMgr.fetchCurrentLocation()
 
         switch currentMode {

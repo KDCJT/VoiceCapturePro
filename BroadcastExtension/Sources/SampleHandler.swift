@@ -21,12 +21,14 @@ class SampleHandler: RPBroadcastSampleHandler {
     // Microphone writer (mono, 48 kHz, 16-bit PCM)
     private var micWriter:      AVAssetWriter?
     private var micInput:       AVAssetWriterInput?
-    private var micSessionBegan = false
 
     // System audio writer (stereo, 48 kHz, 16-bit PCM)
     private var sysWriter:      AVAssetWriter?
     private var sysInput:       AVAssetWriterInput?
-    private var sysSessionBegan = false
+
+    // Shared session state
+    private var sessionBegan     = false
+    private var sessionStartTime: CMTime?
 
     // Shared state
     private var defaults: UserDefaults? { UserDefaults(suiteName: groupID) }
@@ -118,26 +120,27 @@ class SampleHandler: RPBroadcastSampleHandler {
 
     override func processSampleBuffer(_ sampleBuffer: CMSampleBuffer,
                                       with sampleBufferType: RPSampleBufferType) {
+        // Start session on first buffer of any audio type
+        if !sessionBegan && (sampleBufferType == .audioMic || sampleBufferType == .audioApp) {
+            let pts = sampleBuffer.presentationTimeStamp
+            micWriter?.startSession(atSourceTime: pts)
+            sysWriter?.startSession(atSourceTime: pts)
+            sessionBegan = true
+            sessionStartTime = pts
+        }
+
         switch sampleBufferType {
 
         case .audioMic:
             guard let writer = micWriter, writer.status == .writing,
-                  let input  = micInput else { return }
-            if !micSessionBegan {
-                writer.startSession(atSourceTime: sampleBuffer.presentationTimeStamp)
-                micSessionBegan = true
-            }
+                  let input  = micInput, sessionBegan else { return }
             if input.isReadyForMoreMediaData { input.append(sampleBuffer) }
             // Report level so HomeView waveform can animate
             defaults?.set(rmsLevel(sampleBuffer), forKey: AppGroupConstants.micAudioLevelKey)
 
         case .audioApp:
             guard let writer = sysWriter, writer.status == .writing,
-                  let input  = sysInput else { return }
-            if !sysSessionBegan {
-                writer.startSession(atSourceTime: sampleBuffer.presentationTimeStamp)
-                sysSessionBegan = true
-            }
+                  let input  = sysInput, sessionBegan else { return }
             if input.isReadyForMoreMediaData { input.append(sampleBuffer) }
             defaults?.set(rmsLevel(sampleBuffer), forKey: AppGroupConstants.sysAudioLevelKey)
 

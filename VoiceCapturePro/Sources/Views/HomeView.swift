@@ -19,7 +19,7 @@ struct HomeView: View {
     // For reading VC to pass into showBroadcastPicker
     @State private var hostVC: UIViewController?
 
-    private let elapsedTimer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
+
 
     var body: some View {
         ZStack {
@@ -54,7 +54,14 @@ struct HomeView: View {
             }
         }
         .sheet(isPresented: $showQualityPicker) { qualitySheet }
-        .onReceive(elapsedTimer) { _ in updateElapsed() }
+        .onReceive(manager.$elapsedTime) { t in
+            let h = Int(t) / 3600
+            let m = (Int(t) % 3600) / 60
+            let s = Int(t) % 60
+            elapsedDisplay = h > 0
+                ? String(format: "%d:%02d:%02d", h, m, s)
+                : String(format: "%02d:%02d", m, s)
+        }
         .background(ViewControllerFinder(vc: $hostVC))
     }
 
@@ -234,7 +241,7 @@ struct HomeView: View {
         HStack(alignment: .top, spacing: 10) {
             Image(systemName: "info.circle.fill")
                 .foregroundColor(.vcAccent)
-            Text("双轨模式：点击录音按钮后，在系统弹窗中选择「开始直播」即可同时录制系统音频（微信通话等）和麦克风。停止时请点击控制中心的红色状态条。")
+            Text("双轨全捕获模式：点击录像按钮后，在系统弹窗中【必须点击底部的麦克风图标以开启麦克风】，然后选择「开始直播」。录制过程中秒数会自动变动。")
                 .font(.system(size: 12))
                 .foregroundColor(.vcSubtext)
         }
@@ -287,20 +294,7 @@ struct HomeView: View {
 
     // MARK: - Helpers
 
-    private func updateElapsed() {
-        let t: TimeInterval
-        if manager.currentMode == .micOnly {
-            t = manager.micEngine.elapsedTime
-        } else {
-            t = manager.broadcastMgr.elapsedTime
-        }
-        let h = Int(t) / 3600
-        let m = (Int(t) % 3600) / 60
-        let s = Int(t) % 60
-        elapsedDisplay = h > 0
-            ? String(format: "%d:%02d:%02d", h, m, s)
-            : String(format: "%02d:%02d", m, s)
-    }
+
 }
 
 // MARK: - LevelPill
