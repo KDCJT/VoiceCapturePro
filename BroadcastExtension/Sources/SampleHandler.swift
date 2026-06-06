@@ -223,7 +223,7 @@ class SampleHandler: RPBroadcastSampleHandler {
                 guard let obs = observer else { return }
                 let handler = Unmanaged<SampleHandler>.fromOpaque(obs).takeUnretainedValue()
                 DispatchQueue.main.async {
-                    handler.perform(#selector(RPBroadcastHandler.finishBroadcastWithError(_:)), with: nil)
+                    handler.perform(#selector(RPBroadcastSampleHandler.finishBroadcastWithError(_:)), with: nil)
                 }
             },
             AppGroupConstants.broadcastRequestStopNotif as CFString,
