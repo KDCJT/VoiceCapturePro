@@ -170,18 +170,26 @@ struct HomeView: View {
     }
 
     private var recordButton: some View {
-        RecordButtonView(
-            isRecording: manager.isRecording,
-            level:       manager.displayLevel,
-            mode:        manager.currentMode,
-            onTap: {
-                if manager.isRecording {
-                    manager.stopRecording()
-                } else {
-                    manager.startRecording(in: hostVC)
+        ZStack {
+            RecordButtonView(
+                isRecording: manager.isRecording,
+                level:       manager.displayLevel,
+                mode:        manager.currentMode,
+                onTap: {
+                    if manager.isRecording {
+                        manager.stopRecording()
+                    } else {
+                        manager.startRecording(in: hostVC)
+                    }
                 }
+            )
+
+            if manager.currentMode == .fullCapture && !manager.isRecording {
+                BroadcastPickerButton(extensionBundleID: AppGroupConstants.broadcastBundleID)
+                    .frame(width: 120, height: 120)
+                    .opacity(0.01)
             }
-        )
+        }
     }
 
     private var notesSection: some View {

@@ -30,7 +30,10 @@ final class BroadcastManager: NSObject, ObservableObject {
     override init() {
         super.init()
         registerDarwinNotifications()
-        // Check if a broadcast is already running (e.g. app was backgrounded)
+        // Reset status to idle on fresh launch to clear any crash-induced stuck states.
+        defaults?.set(BroadcastStatus.idle.rawValue, forKey: AppGroupConstants.broadcastStatusKey)
+        defaults?.set(0.0, forKey: AppGroupConstants.micAudioLevelKey)
+        defaults?.set(0.0, forKey: AppGroupConstants.sysAudioLevelKey)
         syncStatusFromDefaults()
     }
 

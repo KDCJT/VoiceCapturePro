@@ -92,11 +92,21 @@ final class RecordingManager: ObservableObject {
                 guard let self = self else { return }
                 if self.currentMode == .fullCapture {
                     switch status {
-                    case .recording, .paused:
+                    case .recording:
+                        if !self.isRecording {
+                            self.sessionStartDate = Date()
+                            self.currentNotes = ""
+                            self.locationMgr.requestPermission()
+                            self.locationMgr.fetchCurrentLocation()
+                            self.isRecording = true
+                        }
+                    case .paused:
                         self.isRecording = true
                     case .finished:
-                        self.onBroadcastFinished()
-                        self.isRecording = false
+                        if self.isRecording {
+                            self.onBroadcastFinished()
+                            self.isRecording = false
+                        }
                     case .idle:
                         self.isRecording = false
                     }
