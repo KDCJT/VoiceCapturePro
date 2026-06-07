@@ -47,7 +47,20 @@ class SampleHandler: RPBroadcastSampleHandler {
         guard let container = FileManager.default.containerURL(
             forSecurityApplicationGroupIdentifier: groupID
         ) else {
-            let errorMsg = "无法访问 App Group 容器，请确认已配置 App Group。"
+            let errorMsg = "无法访问 App Group 共享目录，请检查配置。"
+            AppGroupConstants.log("Error: \(errorMsg)")
+            finishBroadcastWithError(makeError(errorMsg))
+            return
+        }
+
+        // Test write to container to verify sandbox write permissions
+        let testURL = container.appendingPathComponent("test_write.txt")
+        do {
+            try "Test".write(to: testURL, atomically: true, encoding: .utf8)
+            try FileManager.default.removeItem(at: testURL)
+            AppGroupConstants.log("App Group shared container write permission verified successfully.")
+        } catch {
+            let errorMsg = "共享目录写入测试失败: \(error.localizedDescription) (请确认已在 TrollStore 启用 App Group 权限，或尝试重新安装)"
             AppGroupConstants.log("Error: \(errorMsg)")
             finishBroadcastWithError(makeError(errorMsg))
             return
@@ -116,6 +129,7 @@ class SampleHandler: RPBroadcastSampleHandler {
             micInput = mi
             micWriter?.startWriting()
             if micWriter?.status == .failed {
+                logWriterError(micWriter!, prefix: "Microphone writer")
                 throw micWriter?.error ?? makeError("Microphone writer failed to start writing")
             }
 
@@ -127,6 +141,7 @@ class SampleHandler: RPBroadcastSampleHandler {
             sysInput = si
             sysWriter?.startWriting()
             if sysWriter?.status == .failed {
+                logWriterError(sysWriter!, prefix: "System writer")
                 throw sysWriter?.error ?? makeError("System writer failed to start writing")
             }
 
@@ -319,6 +334,17 @@ class SampleHandler: RPBroadcastSampleHandler {
             CFNotificationCenterGetDarwinNotifyCenter(),
             Unmanaged.passUnretained(self).toOpaque()
         )
+    }
+
+    private func logWriterError(_ writer: AVAssetWriter, prefix: String) {
+        if let error = writer.error as NSError? {
+            AppGroupConstants.log("\(prefix) failed: \(error.localizedDescription) (Domain: \(error.domain), Code: \(error.code))")
+            if let underlying = error.userInfo[NSUnderlyingErrorKey] as? NSError {
+                AppGroupConstants.log("\(prefix) underlying error: \(underlying.localizedDescription) (Domain: \(underlying.domain), Code: \(underlying.code))")
+            }
+        } else {
+            AppGroupConstants.log("\(prefix) failed with unknown error.")
+        }
     }
 }
 
