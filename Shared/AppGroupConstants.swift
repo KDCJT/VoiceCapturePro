@@ -42,6 +42,44 @@ enum AppGroupConstants {
         // Fallback: use the app's own Documents directory
         return FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first
     }
+
+    // ─── Logging Utility ──────────────────────────────────────
+    static func log(_ message: String) {
+        let timestamp = DateFormatter.localizedString(from: Date(), dateStyle: .none, timeStyle: .medium)
+        let logLine = "[\(timestamp)] \(message)\n"
+        print(logLine)
+        
+        guard let container = containerURL else { return }
+        let logURL = container.appendingPathComponent("extension_debug.log")
+        
+        if let data = logLine.data(using: .utf8) {
+            if FileManager.default.fileExists(atPath: logURL.path) {
+                if let fileHandle = try? FileHandle(forWritingTo: logURL) {
+                    fileHandle.seekToEndOfFile()
+                    fileHandle.write(data)
+                    fileHandle.closeFile()
+                }
+            } else {
+                try? data.write(to: logURL)
+            }
+        }
+    }
+
+    static func clearLogs() {
+        guard let container = containerURL else { return }
+        let logURL = container.appendingPathComponent("extension_debug.log")
+        try? FileManager.default.removeItem(at: logURL)
+    }
+
+    static func readLogs() -> String {
+        guard let container = containerURL else { return "No container" }
+        let logURL = container.appendingPathComponent("extension_debug.log")
+        guard FileManager.default.fileExists(atPath: logURL.path) else { return "No logs recorded yet" }
+        if let content = try? String(contentsOf: logURL, encoding: .utf8) {
+            return content
+        }
+        return "Failed to read log file"
+    }
 }
 
 // MARK: - Broadcast Status

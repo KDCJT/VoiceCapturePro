@@ -13,6 +13,7 @@ struct SettingsView: View {
 
     @State private var storageUsed: String = "计算中…"
     @State private var showClearConfirm = false
+    @State private var showDiagnostics  = false
 
     var body: some View {
         ZStack {
@@ -116,6 +117,15 @@ struct SettingsView: View {
                             .foregroundColor(.vcAccent)
                     }
                     .listRowBackground(Color.vcCard)
+
+                    Button {
+                        showDiagnostics = true
+                    } label: {
+                        Label("查看系统广播诊断日志", systemImage: "terminal.fill")
+                            .font(.system(size: 13, weight: .medium))
+                            .foregroundColor(.vcAccent)
+                    }
+                    .listRowBackground(Color.vcCard)
                 } header: {
                     sectionHeader("关于")
                 }
@@ -137,6 +147,9 @@ struct SettingsView: View {
             Button("取消", role: .cancel) {}
         } message: {
             Text("将删除全部录音及音频文件，此操作无法撤销。")
+        }
+        .sheet(isPresented: $showDiagnostics) {
+            DiagnosticLogsView()
         }
     }
 
@@ -206,5 +219,80 @@ struct SettingsView: View {
             fmt.allowedUnits = [.useKB, .useMB, .useGB]; fmt.countStyle = .file
             DispatchQueue.main.async { storageUsed = fmt.string(fromByteCount: total) }
         }
+    }
+}
+
+// MARK: - DiagnosticLogsView
+
+struct DiagnosticLogsView: View {
+    @Environment(\.presentationMode) var presentationMode
+    @State private var logs = ""
+
+    var body: some View {
+        NavigationView {
+            VStack(spacing: 0) {
+                ScrollView {
+                    Text(logs)
+                        .font(.system(.caption2, design: .monospaced))
+                        .foregroundColor(.vcText)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding()
+                }
+                .background(Color.vcSurface)
+                .cornerRadius(12)
+                .padding()
+
+                HStack(spacing: 16) {
+                    Button(action: {
+                        UIPasteboard.general.string = logs
+                    }) {
+                        Label("复制日志", systemImage: "doc.on.doc.fill")
+                            .font(.system(size: 14, weight: .semibold))
+                            .foregroundColor(.white)
+                            .padding()
+                            .frame(maxWidth: .infinity)
+                            .background(Color.vcAccent)
+                            .cornerRadius(12)
+                    }
+
+                    Button(action: {
+                        AppGroupConstants.clearLogs()
+                        refreshLogs()
+                    }) {
+                        Label("清空日志", systemImage: "trash.fill")
+                            .font(.system(size: 14, weight: .semibold))
+                            .foregroundColor(.white)
+                            .padding()
+                            .frame(maxWidth: .infinity)
+                            .background(Color.vcRed)
+                            .cornerRadius(12)
+                    }
+                }
+                .padding(.horizontal)
+                .padding(.bottom, 20)
+            }
+            .background(Color.vcBackground.ignoresSafeArea())
+            .navigationTitle("系统广播诊断日志")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("关闭") { presentationMode.wrappedValue.dismiss() }
+                        .foregroundColor(.vcAccent)
+                }
+            }
+        }
+        .onAppear { refreshLogs() }
+        .preferredColorScheme(.dark)
+    }
+
+    private func refreshLogs() {
+        let appGroupID = AppGroupConstants.appGroupID
+        let groupURL = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: appGroupID)
+        let statusText = groupURL != nil 
+            ? "✅ App Group 共享容器有效!\n路径: \(groupURL!.path)" 
+            : "❌ App Group 共享容器失效!\n正在使用本地沙盒路径，扩展进程与 App 进程将无法同步录音文件与数据！请检查 TrollStore / 证书签名 entitlements 配置。"
+        
+        let fileLogs = AppGroupConstants.readLogs()
+        logs = "【沙盒环境检测】\n\(statusText)\n\n【后台扩展日志】\n\(fileLogs)"
     }
 }

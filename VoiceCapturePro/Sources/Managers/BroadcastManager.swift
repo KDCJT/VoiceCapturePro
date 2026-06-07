@@ -194,6 +194,7 @@ final class BroadcastManager: NSObject, ObservableObject {
     private func stopTimers() {
         pollTimer?.invalidate();  pollTimer = nil
         clockTimer?.invalidate(); clockTimer = nil
+        startTime = nil
         elapsedTime = 0
     }
 
